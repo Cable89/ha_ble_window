@@ -27,10 +27,7 @@
 
 #include "window.h"
 
-#define DIR_RELAY_PIN 16    // P0.16
-#define POWER_RELAY_PIN 11  // P0.11
-#define DIR_OPEN 1
-#define DIR_CLOSE 0
+uint8_t window_position = 0;
 
 APP_TIMER_DEF(m_single_shot_timer_id);
 
@@ -54,31 +51,41 @@ void create_timers(){
 /**@brief Function for opening window.
  */
 void window_open(void){
-  nrf_gpio_pin_write(DIR_RELAY_PIN, DIR_OPEN);
-  nrf_gpio_pin_write(POWER_RELAY_PIN, 1);
-  /*
-  for(int i=0; i<10; i++){
-    nrf_delay_ms(1000);
-  }
-  */
-  app_timer_start(m_single_shot_timer_id, APP_TIMER_TICKS(10000), NULL);
-  //nrf_gpio_pin_write(POWER_RELAY_PIN, 0);
+  window_actuate(DIR_OPEN, 10000);
+  window_position = 255;
 }
 
 /**@brief Function for closing window.
  */
 void window_close(void){
-  nrf_gpio_pin_write(DIR_RELAY_PIN, DIR_CLOSE);
-  nrf_gpio_pin_write(POWER_RELAY_PIN, 1);
-  /*
-  for(int i=0; i<10; i++){
-    nrf_delay_ms(1000);
-  }
-  */
-  app_timer_start(m_single_shot_timer_id, APP_TIMER_TICKS(10000), NULL);
-  //nrf_gpio_pin_write(POWER_RELAY_PIN, 0);
+  window_actuate(DIR_CLOSE, 10000);
+  window_position = 0;
 }
 
-void window_actuate(uint8_t dir){
+void window_set_position(uint8_t position){
+  uint16_t duration = 0;
+  uint8_t direction = DIR_CLOSE;
+  if(position > window_position){
+    duration = (OPENING_DURATION * (position - window_position)) / WINDOW_TRAVEL_LENGTH;
+    direction = DIR_OPEN;
+    window_actuate(direction, duration);
+    window_position = position;
+  } else if (position < window_position){
+    duration = (CLOSING_DURATION * (window_position - position)) / WINDOW_TRAVEL_LENGTH;
+    direction = DIR_CLOSE;
+    window_actuate(direction, duration);
+    window_position = position;
+  } else {
+    // Do nothing
+  }
+}
 
+void window_actuate(uint8_t dir, uint16_t duration){
+  nrf_gpio_pin_write(DIR_RELAY_PIN, dir);
+  nrf_gpio_pin_write(POWER_RELAY_PIN, 1);
+  app_timer_start(m_single_shot_timer_id, APP_TIMER_TICKS(duration), NULL);
+}
+
+uint8_t get_window_position(void){
+  return window_position;
 }
